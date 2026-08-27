@@ -13,6 +13,8 @@ import {
   RotateCcw,
   Flame,
   Trees,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 // ---------- Data ----------
@@ -143,20 +145,41 @@ function loadState(): Persisted {
   }
 }
 
+// ---------- Theme ----------
+type Theme = "dark" | "light";
+const THEME_STORAGE = "last-journey:theme";
+
+function loadTheme(): Theme {
+  if (typeof document === "undefined") return "dark";
+  return document.documentElement.classList.contains("light") ? "light" : "dark";
+}
+
 function mapUrl(address: string) {
   return `https://map.kakao.com/link/search/${encodeURIComponent(address)}`;
 }
 
 export default function App() {
   const [state, setState] = useState<Persisted>({ checked: {}, choice: "" });
+  const [theme, setTheme] = useState<Theme>("dark");
   const [tab, setTab] = useState<"dashboard" | "facilities" | "checklist" | "help">("dashboard");
 
   useEffect(() => {
     setState(loadState());
+    setTheme(loadTheme());
   }, []);
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem(STORAGE, JSON.stringify(state));
   }, [state]);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.classList.toggle("light", theme === "light");
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    try {
+      localStorage.setItem(THEME_STORAGE, theme);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
 
   const stages = useMemo(() => {
     const branch = state.choice === "cremation" ? STAGE_2_CREMATION : state.choice === "burial" ? STAGE_2_BURIAL : null;
@@ -174,6 +197,7 @@ export default function App() {
   const resetAll = () => {
     if (confirm("모든 체크 항목을 초기화할까요?")) setState({ checked: {}, choice: "" });
   };
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
   const TABS: { id: typeof tab; label: string; Icon: typeof LayoutDashboard }[] = [
     { id: "dashboard", label: "대시보드", Icon: LayoutDashboard },
@@ -192,13 +216,22 @@ export default function App() {
             </span>
             <span className="text-sm font-semibold text-muted-foreground truncate">체크리스트</span>
           </div>
-          <button
-            onClick={resetAll}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-surface border border-border/50 text-muted-foreground"
-            aria-label="초기화"
-          >
-            <RotateCcw className="w-3 h-3" /> 초기화
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={toggleTheme}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface border border-border/50 text-muted-foreground"
+              aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+            >
+              {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={resetAll}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-surface border border-border/50 text-muted-foreground"
+              aria-label="초기화"
+            >
+              <RotateCcw className="w-3 h-3" /> 초기화
+            </button>
+          </div>
         </div>
       </header>
 
