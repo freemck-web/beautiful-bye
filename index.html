@@ -6,8 +6,23 @@
     <meta name="robots" content="noindex" />
     <title>마지막 길 체크리스트</title>
     <meta name="description" content="임종 전후를 처음 겪는 가족을 위한 순서 안내 체크리스트" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("last-journey:theme");
+          var theme =
+            saved === "light" || saved === "dark"
+              ? saved
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          document.documentElement.classList.toggle("light", theme === "light");
+          document.documentElement.classList.toggle("dark", theme === "dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="dark">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
