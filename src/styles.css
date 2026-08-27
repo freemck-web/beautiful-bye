@@ -51,6 +51,8 @@
 
   --brand-blue: oklch(0.48 0.18 240);
   --brand-green: oklch(0.50 0.16 155);
+
+  color-scheme: light;
 }
 
 .dark { color-scheme: dark; }
