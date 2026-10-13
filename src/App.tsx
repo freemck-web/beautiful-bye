@@ -3,6 +3,7 @@ import {
   Phone,
   Info,
   ChevronRight,
+  ChevronDown,
   CheckCircle2,
   Circle,
   HelpCircle,
@@ -190,6 +191,8 @@ export default function App() {
   const [tab, setTab] = useState<"dashboard" | "facilities" | "checklist" | "help">("dashboard");
   const [obit, setObit] = useState<Obit>(EMPTY_OBIT);
   const [obitCopied, setObitCopied] = useState(false);
+  const [expandedStages, setExpandedStages] = useState<Set<string>>(() => new Set(["s0", "s2c", "s2b"]));
+  const [expandedFacilities, setExpandedFacilities] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     setState(loadState());
@@ -208,6 +211,10 @@ export default function App() {
       // ignore
     }
   }, [theme]);
+  useEffect(() => {
+    const branchId = state.choice === "cremation" ? "s2c" : state.choice === "burial" ? "s2b" : null;
+    if (branchId) setExpandedStages((prev) => (prev.has(branchId) ? prev : new Set(prev).add(branchId)));
+  }, [state.choice]);
 
   const stages = useMemo(() => {
     const branch = state.choice === "cremation" ? STAGE_2_CREMATION : state.choice === "burial" ? STAGE_2_BURIAL : null;
@@ -218,6 +225,7 @@ export default function App() {
   const total = allSteps.length;
   const doneCount = allSteps.filter((s) => state.checked[s.id]).length;
   const progressPct = total ? (doneCount / total) * 100 : 0;
+  const nextStep = useMemo(() => allSteps.find((s) => !state.checked[s.id]), [allSteps, state.checked]);
 
   const toggle = (id: StepId) =>
     setState((s) => ({ ...s, checked: { ...s.checked, [id]: !s.checked[id] } }));
@@ -226,6 +234,28 @@ export default function App() {
     if (confirm("모든 체크 항목을 초기화할까요?")) setState({ checked: {}, choice: "" });
   };
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+  const toggleStage = (id: string) =>
+    setExpandedStages((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleFacility = (id: string) =>
+    setExpandedFacilities((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const goToNextStep = () => {
+    if (!nextStep) return;
+    const stage = stages.find((st) => st.steps.some((s) => s.id === nextStep.id));
+    if (stage) setExpandedStages((prev) => new Set(prev).add(stage.id));
+    setTab("checklist");
+  };
 
   const updateObit = (key: keyof Obit, value: string) => setObit((o) => ({ ...o, [key]: value }));
   const obitText = useMemo(() => buildObitText(obit), [obit]);
@@ -239,50 +269,304 @@ export default function App() {
     }
   };
 
-  const renderStageSection = (stage: Stage) => (
-    <section
-      key={stage.id}
-      className="rounded-2xl overflow-hidden bg-surface border border-border/60"
-    >
-      <div className="px-4 py-2.5 flex items-center justify-between border-b border-border/60 bg-gradient-brand-soft">
-        <div className="text-sm font-bold">{stage.label}</div>
-        <div className="text-[11px] text-muted-foreground">{stage.timing}</div>
-      </div>
-      <ul>
-        {stage.steps.map((s, idx) => {
-          const isDone = !!state.checked[s.id];
-          return (
-            <li key={s.id} className={idx === 0 ? "" : "border-t border-border/60"}>
-              <button
-                onClick={() => toggle(s.id)}
-                className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-surface-elevated transition"
-              >
-                {isDone ? (
-                  <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0 text-brand-green" />
-                ) : (
-                  <Circle className="w-5 h-5 mt-0.5 shrink-0 text-muted-foreground" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div
-                    className={`text-[14px] leading-snug ${
-                      isDone ? "line-through text-muted-foreground" : "text-foreground"
-                    }`}
+  const renderStageSection = (stage: Stage) => {
+    const isExpanded = expandedStages.has(stage.id);
+    const stageDone = stage.steps.filter((s) => state.checked[s.id]).length;
+    return (
+      <section
+        key={stage.id}
+        className="rounded-2xl overflow-hidden bg-surface border border-border/60"
+      >
+        <button
+          onClick={() => toggleStage(stage.id)}
+          className="w-full px-4 py-3 flex items-center justify-between gap-2 text-left bg-gradient-brand-soft"
+          aria-expanded={isExpanded}
+        >
+          <div className="min-w-0">
+            <div className="text-sm font-bold truncate">{stage.label}</div>
+            <div className="text-[11px] text-muted-foreground">{stage.timing}</div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-semibold text-muted-foreground">
+              {stageDone}/{stage.steps.length}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
+            />
+          </div>
+        </button>
+        {isExpanded && (
+          <ul className="border-t border-border/60">
+            {stage.steps.map((s, idx) => {
+              const isDone = !!state.checked[s.id];
+              return (
+                <li key={s.id} className={idx === 0 ? "" : "border-t border-border/60"}>
+                  <button
+                    onClick={() => toggle(s.id)}
+                    className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-surface-elevated transition"
                   >
-                    {s.label}
-                  </div>
-                  {s.hint && (
-                    <div className="text-[12px] mt-1 leading-relaxed text-muted-foreground">
-                      {s.hint}
+                    {isDone ? (
+                      <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0 text-brand-green" />
+                    ) : (
+                      <Circle className="w-5 h-5 mt-0.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className={`text-[14px] leading-snug ${
+                          isDone ? "line-through text-muted-foreground" : "text-foreground"
+                        }`}
+                      >
+                        {s.label}
+                      </div>
+                      {s.hint && (
+                        <div className="text-[12px] mt-1 leading-relaxed text-muted-foreground">
+                          {s.hint}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    );
+  };
+
+  const renderFuneralHomeCard = (f: FuneralHome) => {
+    const isTop = f.rank === 1;
+    const expanded = isTop || expandedFacilities.has(f.id);
+    return (
+      <article
+        key={f.id}
+        className={`rounded-2xl bg-surface overflow-hidden ${isTop ? "ring-gradient-brand shadow-brand" : "border border-border/60"}`}
+      >
+        <div className="p-4 flex items-start justify-between gap-3">
+          <button
+            onClick={() => !isTop && toggleFacility(f.id)}
+            disabled={isTop}
+            className="min-w-0 flex-1 text-left"
+          >
+            <div
+              className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded ${
+                isTop ? "bg-gradient-brand text-white" : "bg-surface-elevated text-muted-foreground"
+              }`}
+            >
+              {f.badge}
+            </div>
+            <div className="mt-1.5 text-base font-bold leading-snug">{f.name}</div>
+          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {!isTop && f.phone && (
+              <a
+                href={`tel:${f.phone}`}
+                className="w-9 h-9 rounded-full bg-brand-blue text-white flex items-center justify-center"
+                aria-label={`${f.name} 전화`}
+              >
+                <Phone className="w-4 h-4" />
+              </a>
+            )}
+            {!isTop && (
+              <a
+                href={mapUrl(f.address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-background border border-border/60 flex items-center justify-center"
+                aria-label={`${f.name} 지도`}
+              >
+                <MapPin className="w-4 h-4" />
+              </a>
+            )}
+            {!isTop && (
+              <button
+                onClick={() => toggleFacility(f.id)}
+                aria-label={expanded ? "접기" : "자세히 보기"}
+                className="w-9 h-9 rounded-full border border-border/60 flex items-center justify-center text-muted-foreground"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
               </button>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
+            )}
+          </div>
+        </div>
+
+        {expanded && (
+          <div className={`px-4 pb-4 space-y-2 ${isTop ? "" : "pt-0 border-t border-border/60 pt-3"}`}>
+            <div className="text-[12px] text-muted-foreground">{f.type} · {f.hours}</div>
+            <div className="text-[12px] flex items-start gap-1 text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {f.address}
+            </div>
+
+            {f.avgDailyCost != null && (
+              <div className="pt-1">
+                <div className="text-[11px] text-muted-foreground">1일 빈소 평균</div>
+                <div className="text-xl font-bold text-gradient-brand">
+                  {f.avgDailyCost.toLocaleString()}원
+                </div>
+                <div className="text-[11px] text-muted-foreground">{f.costRange}</div>
+              </div>
+            )}
+
+            <div className="text-[12px] leading-relaxed text-muted-foreground">{f.note}</div>
+
+            {isTop && (
+              <>
+                {f.phone ? (
+                  <a
+                    href={`tel:${f.phone}`}
+                    className="mt-1 flex items-center justify-center gap-2 w-full rounded-xl font-bold text-base py-3 bg-brand-blue text-white"
+                  >
+                    <Phone className="w-4 h-4" /> {f.phone}
+                  </a>
+                ) : (
+                  <div className="mt-1 rounded-xl text-center text-[12px] py-2.5 bg-surface-elevated text-muted-foreground">
+                    전화번호는 임종 시점에 검색하여 확인
+                  </div>
+                )}
+                <a
+                  href={mapUrl(f.address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 flex items-center justify-center gap-2 w-full rounded-xl font-semibold text-sm py-2.5 bg-background border border-border/60"
+                >
+                  <MapPin className="w-4 h-4" /> 지도 보기
+                </a>
+              </>
+            )}
+
+            {f.backup && (
+              <div className="rounded-lg px-3 py-2 text-[12px] flex items-center gap-1 bg-surface-elevated text-muted-foreground">
+                <ChevronRight className="w-3.5 h-3.5" />
+                {f.rank}순위 안 되면 → {f.backup.rank}순위 {f.backup.name}
+                {f.backup.phone && <span className="ml-1 text-foreground">{f.backup.phone}</span>}
+              </div>
+            )}
+          </div>
+        )}
+      </article>
+    );
+  };
+
+  const renderCrematoriumCard = (c: Crematorium) => {
+    const isTop = c.rank === 1;
+    const expanded = isTop || expandedFacilities.has(c.id);
+    return (
+      <article
+        key={c.id}
+        className={`rounded-2xl bg-surface overflow-hidden ${isTop ? "ring-gradient-brand shadow-brand" : "border border-border/60"}`}
+      >
+        <div className="p-4 flex items-start justify-between gap-3">
+          <button
+            onClick={() => !isTop && toggleFacility(c.id)}
+            disabled={isTop}
+            className="min-w-0 flex-1 text-left"
+          >
+            <div
+              className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded ${
+                isTop ? "bg-gradient-brand text-white" : "bg-surface-elevated text-muted-foreground"
+              }`}
+            >
+              {c.badge}
+            </div>
+            <div className="mt-1.5 text-base font-bold leading-snug">{c.name}</div>
+          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {!isTop && c.phone && (
+              <a
+                href={`tel:${c.phone}`}
+                className="w-9 h-9 rounded-full bg-brand-blue text-white flex items-center justify-center"
+                aria-label={`${c.name} 전화`}
+              >
+                <Phone className="w-4 h-4" />
+              </a>
+            )}
+            {!isTop && (
+              <a
+                href={mapUrl(c.address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-background border border-border/60 flex items-center justify-center"
+                aria-label={`${c.name} 지도`}
+              >
+                <MapPin className="w-4 h-4" />
+              </a>
+            )}
+            {!isTop && (
+              <button
+                onClick={() => toggleFacility(c.id)}
+                aria-label={expanded ? "접기" : "자세히 보기"}
+                className="w-9 h-9 rounded-full border border-border/60 flex items-center justify-center text-muted-foreground"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {expanded && (
+          <div className={`px-4 pb-4 space-y-2 ${isTop ? "" : "pt-0 border-t border-border/60 pt-3"}`}>
+            <div className="text-[12px] text-muted-foreground">아산 자택에서 {c.distance}</div>
+            <div className="text-[12px] flex items-start gap-1 text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {c.address}
+            </div>
+
+            {c.highlight && (
+              <div className="rounded-lg px-3 py-2 text-[12px] font-semibold bg-gradient-brand-soft text-foreground border border-border/60">
+                💡 {c.highlight}
+              </div>
+            )}
+
+            {c.cost && (
+              <div className="rounded-lg p-3 bg-surface-elevated">
+                {Object.entries(c.cost).map(([k, v]) => (
+                  <div key={k} className="flex justify-between text-[13px] py-0.5">
+                    <span className="text-muted-foreground">{k}</span>
+                    <span className={`font-semibold ${k.includes("아산") ? "text-gradient-brand" : ""}`}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {c.reservation && (
+              <div className="text-[12px] leading-relaxed text-muted-foreground">예약: {c.reservation}</div>
+            )}
+
+            {isTop && (
+              <>
+                {c.phone ? (
+                  <a
+                    href={`tel:${c.phone}`}
+                    className="mt-1 flex items-center justify-center gap-2 w-full rounded-xl font-bold text-base py-3 bg-brand-blue text-white"
+                  >
+                    <Phone className="w-4 h-4" /> {c.phone}
+                  </a>
+                ) : (
+                  <div className="mt-1 rounded-xl text-center text-[12px] py-2.5 bg-surface-elevated text-muted-foreground">
+                    전화번호는 임종 시점에 검색하여 확인
+                  </div>
+                )}
+                <a
+                  href={mapUrl(c.address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 flex items-center justify-center gap-2 w-full rounded-xl font-semibold text-sm py-2.5 bg-background border border-border/60"
+                >
+                  <MapPin className="w-4 h-4" /> 지도 보기
+                </a>
+              </>
+            )}
+
+            {c.backup && (
+              <div className="rounded-lg px-3 py-2 text-[12px] flex items-center gap-1 bg-surface-elevated text-muted-foreground">
+                <ChevronRight className="w-3.5 h-3.5" />
+                만실이면 → {c.backup.rank}순위 {c.backup.name} ({c.backup.distance})
+              </div>
+            )}
+          </div>
+        )}
+      </article>
+    );
+  };
 
   const TABS: { id: typeof tab; label: string; Icon: typeof LayoutDashboard }[] = [
     { id: "dashboard", label: "대시보드", Icon: LayoutDashboard },
@@ -338,6 +622,21 @@ export default function App() {
               <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
                 항목은 언제든 체크했다 풀 수 있고, 단계 사이도 자유롭게 오갈 수 있어요.
               </p>
+            </section>
+
+            <section className="rounded-2xl bg-surface border border-border/60 p-4">
+              <div className="text-xs font-semibold text-muted-foreground">다음 할 일</div>
+              {nextStep ? (
+                <button
+                  onClick={goToNextStep}
+                  className="mt-1.5 w-full flex items-center justify-between gap-2 text-left"
+                >
+                  <span className="text-sm font-bold truncate">{nextStep.label}</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+              ) : (
+                <div className="mt-1.5 text-sm font-bold text-brand-green">모든 항목을 완료했어요</div>
+              )}
             </section>
 
             <section className="rounded-2xl bg-surface border border-border/60 p-4">
@@ -419,7 +718,7 @@ export default function App() {
           <>
             <section className="rounded-2xl bg-surface border border-border/60 p-3 flex items-center justify-between">
               <div className="text-xs font-semibold text-muted-foreground">전체 진행</div>
-              <div className="text-xs font-bold text-gradient-brand">{doneCount} / {total}</div>
+              <div className="text-xs font-bold text-primary">{doneCount} / {total}</div>
             </section>
 
             {stages.map((stage) => renderStageSection(stage))}
@@ -466,144 +765,12 @@ export default function App() {
               <h2 className="text-sm font-bold px-1 text-muted-foreground">
                 장례식장 · 아산 우선순위 (필요 시 천안까지 확장, {FUNERAL_HOMES.length}곳)
               </h2>
-              {FUNERAL_HOMES.map((f) => (
-                <article
-                  key={f.id}
-                  className={`rounded-2xl bg-surface p-4 ${
-                    f.rank === 1 ? "ring-gradient-brand shadow-brand" : "border border-border/60"
-                  }`}
-                >
-                  <div
-                    className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded ${
-                      f.rank === 1 ? "bg-gradient-brand text-white" : "bg-surface-elevated text-muted-foreground"
-                    }`}
-                  >
-                    {f.badge}
-                  </div>
-                  <div className="mt-2 text-lg font-bold leading-snug">{f.name}</div>
-                  <div className="text-[12px] mt-0.5 text-muted-foreground">{f.type} · {f.hours}</div>
-                  <div className="text-[12px] mt-1 flex items-start gap-1 text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {f.address}
-                  </div>
-
-                  {f.avgDailyCost != null && (
-                    <div className="mt-3">
-                      <div className="text-[11px] text-muted-foreground">1일 빈소 평균</div>
-                      <div className="text-xl font-bold text-gradient-brand">
-                        {f.avgDailyCost.toLocaleString()}원
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">{f.costRange}</div>
-                    </div>
-                  )}
-
-                  <div className="text-[12px] mt-2 leading-relaxed text-muted-foreground">{f.note}</div>
-
-                  {f.phone ? (
-                    <a
-                      href={`tel:${f.phone}`}
-                      className="mt-3 flex items-center justify-center gap-2 w-full rounded-xl font-bold text-base py-3 bg-brand-blue text-white"
-                    >
-                      <Phone className="w-4 h-4" /> {f.phone}
-                    </a>
-                  ) : (
-                    <div className="mt-3 rounded-xl text-center text-[12px] py-2.5 bg-surface-elevated text-muted-foreground">
-                      전화번호는 임종 시점에 검색하여 확인
-                    </div>
-                  )}
-                  <a
-                    href={mapUrl(f.address)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 flex items-center justify-center gap-2 w-full rounded-xl font-semibold text-sm py-2.5 bg-background border border-border/60"
-                  >
-                    <MapPin className="w-4 h-4" /> 지도 보기
-                  </a>
-
-                  {f.backup && (
-                    <div className="mt-3 rounded-lg px-3 py-2 text-[12px] flex items-center gap-1 bg-surface-elevated text-muted-foreground">
-                      <ChevronRight className="w-3.5 h-3.5" />
-                      {f.rank}순위 안 되면 → {f.backup.rank}순위 {f.backup.name}
-                      {f.backup.phone && <span className="ml-1 text-foreground">{f.backup.phone}</span>}
-                    </div>
-                  )}
-                </article>
-              ))}
+              {FUNERAL_HOMES.map((f) => renderFuneralHomeCard(f))}
             </section>
 
             <section className="space-y-3">
               <h2 className="text-sm font-bold px-1 text-muted-foreground mt-2">화장시설 · 우선순위</h2>
-              {CREMATORIUMS.map((c) => (
-                <article
-                  key={c.id}
-                  className={`rounded-2xl bg-surface p-4 ${
-                    c.rank === 1 ? "ring-gradient-brand shadow-brand" : "border border-border/60"
-                  }`}
-                >
-                  <div
-                    className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded ${
-                      c.rank === 1 ? "bg-gradient-brand text-white" : "bg-surface-elevated text-muted-foreground"
-                    }`}
-                  >
-                    {c.badge}
-                  </div>
-                  <div className="mt-2 text-lg font-bold leading-snug">{c.name}</div>
-                  <div className="text-[12px] mt-0.5 text-muted-foreground">아산 자택에서 {c.distance}</div>
-                  <div className="text-[12px] mt-1 flex items-start gap-1 text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {c.address}
-                  </div>
-
-                  {c.highlight && (
-                    <div className="mt-3 rounded-lg px-3 py-2 text-[12px] font-semibold bg-gradient-brand-soft text-foreground border border-border/60">
-                      💡 {c.highlight}
-                    </div>
-                  )}
-
-                  {c.cost && (
-                    <div className="mt-3 rounded-lg p-3 bg-surface-elevated">
-                      {Object.entries(c.cost).map(([k, v]) => (
-                        <div key={k} className="flex justify-between text-[13px] py-0.5">
-                          <span className="text-muted-foreground">{k}</span>
-                          <span className={`font-semibold ${k.includes("아산") ? "text-gradient-brand" : ""}`}>{v}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {c.reservation && (
-                    <div className="text-[12px] mt-2 leading-relaxed text-muted-foreground">
-                      예약: {c.reservation}
-                    </div>
-                  )}
-
-                  {c.phone ? (
-                    <a
-                      href={`tel:${c.phone}`}
-                      className="mt-3 flex items-center justify-center gap-2 w-full rounded-xl font-bold text-base py-3 bg-brand-blue text-white"
-                    >
-                      <Phone className="w-4 h-4" /> {c.phone}
-                    </a>
-                  ) : (
-                    <div className="mt-3 rounded-xl text-center text-[12px] py-2.5 bg-surface-elevated text-muted-foreground">
-                      전화번호는 임종 시점에 검색하여 확인
-                    </div>
-                  )}
-                  <a
-                    href={mapUrl(c.address)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 flex items-center justify-center gap-2 w-full rounded-xl font-semibold text-sm py-2.5 bg-background border border-border/60"
-                  >
-                    <MapPin className="w-4 h-4" /> 지도 보기
-                  </a>
-
-                  {c.backup && (
-                    <div className="mt-3 rounded-lg px-3 py-2 text-[12px] flex items-center gap-1 bg-surface-elevated text-muted-foreground">
-                      <ChevronRight className="w-3.5 h-3.5" />
-                      만실이면 → {c.backup.rank}순위 {c.backup.name} ({c.backup.distance})
-                    </div>
-                  )}
-                </article>
-              ))}
+              {CREMATORIUMS.map((c) => renderCrematoriumCard(c))}
             </section>
           </>
         )}
