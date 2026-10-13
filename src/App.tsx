@@ -15,6 +15,8 @@ import {
   Trees,
   Sun,
   Moon,
+  FileText,
+  Copy,
 } from "lucide-react";
 
 // ---------- Data ----------
@@ -24,13 +26,13 @@ type FuneralHome = {
   name: string;
   badge: string;
   address: string;
-  phone: string;
+  phone: string | null;
   type: string;
   hours: string;
-  avgDailyCost: number;
-  costRange: string;
+  avgDailyCost?: number;
+  costRange?: string;
   note: string;
-  backup: { rank: number; name: string; phone: string } | null;
+  backup: { rank: number; name: string; phone: string | null } | null;
 };
 
 const FUNERAL_HOMES: FuneralHome[] = [
@@ -40,7 +42,8 @@ const FUNERAL_HOMES: FuneralHome[] = [
   { id: "fh-04", rank: 4, name: "아산제일장례식장", badge: "4순위", address: "충청남도 아산시 시민로 40 (신인동, 장례문화원)", phone: "041-545-4444", type: "전문 장례식장", hours: "24시간 연중무휴", avgDailyCost: 900000, costRange: "약 130만~900만원", note: "규모 있는 전문 장례식장.", backup: { rank: 5, name: "교원예움 아산장례식장", phone: "041-549-4441" } },
   { id: "fh-05", rank: 5, name: "교원예움 아산장례식장", badge: "5순위", address: "충청남도 아산시 신정로 713 (방축동)", phone: "041-549-4441", type: "전문 장례식장", hours: "24시간 연중무휴", avgDailyCost: 832000, costRange: "약 104만~858만원", note: "빈소 3실(60~80평), 주차 200대 — 대형 시설.", backup: { rank: 6, name: "배방장례식장", phone: "041-544-1500" } },
   { id: "fh-06", rank: 6, name: "배방장례식장", badge: "6순위", address: "충청남도 아산시 배방읍 갈산교로 38 (구령리)", phone: "041-544-1500", type: "전문 장례식장", hours: "24시간 연중무휴", avgDailyCost: 660000, costRange: "약 90만~700만원", note: "배방·아산신도시권 거주 시 유리.", backup: { rank: 7, name: "아산유리요양병원 장례식장", phone: "041-549-1044" } },
-  { id: "fh-07", rank: 7, name: "아산유리요양병원 장례식장", badge: "7순위 (최후 백업)", address: "충청남도 아산시 도고면 도고면로 179 (기곡리)", phone: "041-549-1044", type: "병원부설", hours: "24시간 연중무휴", avgDailyCost: 840000, costRange: "약 114만~840만원", note: "도고면 위치 — 자택에서 가장 먼 최후 백업.", backup: null },
+  { id: "fh-07", rank: 7, name: "아산유리요양병원 장례식장", badge: "7순위 (아산 내 최후 백업)", address: "충청남도 아산시 도고면 도고면로 179 (기곡리)", phone: "041-549-1044", type: "병원부설", hours: "24시간 연중무휴", avgDailyCost: 840000, costRange: "약 114만~840만원", note: "도고면 위치 — 자택에서 가장 먼 최후 백업.", backup: { rank: 8, name: "순천향천안병원장례식장", phone: null } },
+  { id: "fh-08", rank: 8, name: "순천향천안병원장례식장", badge: "8순위 (아산 전체 만실 시 · 천안 확장)", address: "충청남도 천안시 동남구 순천향천안병원장례식장", phone: null, type: "병원부설", hours: "24시간 연중무휴", note: "아산 7곳이 모두 안 될 때의 지역 확장 옵션. 빈소 4실, 안치 10구 규모로 알려져 있음(장례 정보 비교 사이트 기준, 미검증). 전화번호 확인 안 됨 — 지도에서 상호명 검색 후 직접 확인 필요.", backup: null },
 ];
 
 type Crematorium = {
@@ -68,7 +71,7 @@ const CREMATORIUMS: Crematorium[] = [
     backup: { rank: 2, name: "홍성추모공원화장장", distance: "약 30km" },
   },
   { id: "crem-02", rank: 2, name: "홍성추모공원화장장", badge: "2순위 (천안 만실 시)", address: "충청남도 홍성군 금마면 금마로516번길 85 (봉서리)", phone: null, distance: "약 30km", backup: { rank: 3, name: "공주나래원", distance: "약 43km" } },
-  { id: "crem-03", rank: 3, name: "공주나래원", badge: "3순위 (2차 백업)", address: "충청남도 공주시 이인면 삼배실길 70 (운암리)", phone: null, distance: "약 43km", backup: null },
+  { id: "crem-03", rank: 3, name: "공주나래원", badge: "3순위 (2차 백업)", address: "충청남도 공주시 이인면 삼배실길 70 (운암리)", phone: "041-840-8980", distance: "약 43km", reservation: "2013년 보도 기준 번호 — 전화 전 재확인 권장", backup: null },
 ];
 
 const GLOSSARY = [
@@ -88,7 +91,7 @@ type Stage = { id: string; label: string; timing: string; steps: Step[] };
 const STAGE_0: Stage = {
   id: "s0", label: "0단계 · 사전 준비", timing: "평소에",
   steps: [
-    { id: "s0-1", label: "아산 지역 장례식장 우선순위 확인", hint: "'시설 정보' 탭에서 1~7순위를 미리 훑어보세요." },
+    { id: "s0-1", label: "아산 지역 장례식장 우선순위 확인", hint: "'시설 정보' 탭에서 1~8순위(아산+천안)를 미리 훑어보세요." },
     { id: "s0-2", label: "화장시설(천안추모공원) 연락처 확인" },
     { id: "s0-3", label: "회사 상조 서비스 연락처 확인" },
   ],
@@ -104,11 +107,11 @@ const STAGE_1: Stage = {
 const STAGE_2_CREMATION: Stage = {
   id: "s2c", label: "2단계 · 장례 준비 (화장)", timing: "당일~다음날",
   steps: [
-    { id: "s2c-1", label: "천안추모공원 화장 예약 확인", hint: "장례식장 대행 또는 직접 예약(041-529-5141 · www.15774129.go.kr)" },
+    { id: "s2c-1", label: "천안추모공원 화장 예약 확인", hint: "장례식장 대행 또는 '시설 정보' 탭에서 직접 예약 연락처 확인 (e하늘장사정보 www.15774129.go.kr)" },
     { id: "s2c-2", label: "봉안당 / 수목장 등 장지 결정" },
     { id: "s2c-3", label: "수의 가격 사전 확인 (바가지 주의)" },
     { id: "s2c-4", label: "빈소 용품 목록 및 비용 확인" },
-    { id: "s2c-5", label: "부고 연락 발송" },
+    { id: "s2c-5", label: "부고 연락 발송", hint: "도움말 탭의 '부고 문자 만들기'로 문구를 빠르게 작성할 수 있어요." },
   ],
 };
 const STAGE_2_BURIAL: Stage = {
@@ -117,7 +120,7 @@ const STAGE_2_BURIAL: Stage = {
     { id: "s2b-1", label: "묘지 / 납골당 계약 확인" },
     { id: "s2b-2", label: "수의 가격 사전 확인 (바가지 주의)" },
     { id: "s2b-3", label: "빈소 용품 목록 및 비용 확인" },
-    { id: "s2b-4", label: "부고 연락 발송" },
+    { id: "s2b-4", label: "부고 연락 발송", hint: "도움말 탭의 '부고 문자 만들기'로 문구를 빠르게 작성할 수 있어요." },
   ],
 };
 const STAGE_3: Stage = {
@@ -127,6 +130,16 @@ const STAGE_3: Stage = {
     { id: "s3-2", label: "발인 시간 확인", hint: "발인 — 장례식장에서 장지로 모시고 떠나는 절차" },
     { id: "s3-3", label: "화장 / 하관 시간 확인" },
     { id: "s3-4", label: "삼우제 일정 잡기", hint: "삼우제 — 장례 후 3일째 묘소·봉안당 방문 의식" },
+  ],
+};
+const STAGE_4: Stage = {
+  id: "s4", label: "4단계 · 장례 후 행정", timing: "1주~3개월",
+  steps: [
+    { id: "s4-1", label: "사망신고", hint: "관할 주민센터 또는 정부24. 사망 사실을 안 날로부터 1개월 이내, 사망진단서(시체검안서) 필요." },
+    { id: "s4-2", label: "안심상속 원스톱서비스 신청", hint: "재산·채무를 한 번에 조회. 사망신고와 동시 신청 가능, 사망월 말일부터 1년 이내." },
+    { id: "s4-3", label: "건강보험 자격상실 신고", hint: "국민건강보험공단(1577-1000). 통상 사망일로부터 14일 이내로 알려져 있음 — 최신 기준은 공단에 재확인 권장." },
+    { id: "s4-4", label: "상속포기 / 한정승인 검토", hint: "빚이 있을 수 있다면 상속 사실을 안 날로부터 3개월 이내 관할 가정법원에 신청. 기한을 넘기면 단순승인으로 간주될 수 있음." },
+    { id: "s4-5", label: "통신·전기·인터넷 등 명의 해지·변경" },
   ],
 };
 
@@ -154,6 +167,19 @@ function loadTheme(): Theme {
   return document.documentElement.classList.contains("light") ? "light" : "dark";
 }
 
+// ---------- Obituary draft ----------
+type Obit = { name: string; chief: string; place: string; dateTime: string; contact: string };
+const EMPTY_OBIT: Obit = { name: "", chief: "", place: "", dateTime: "", contact: "" };
+
+function buildObitText(o: Obit): string {
+  const lines: string[] = [`[부고] ${o.name || "고인명"}님께서 별세하셨습니다.`];
+  if (o.chief) lines.push(`상주: ${o.chief}`);
+  if (o.place) lines.push(`빈소: ${o.place}`);
+  if (o.dateTime) lines.push(`발인: ${o.dateTime}`);
+  if (o.contact) lines.push(`연락처: ${o.contact}`);
+  return lines.join("\n");
+}
+
 function mapUrl(address: string) {
   return `https://map.kakao.com/link/search/${encodeURIComponent(address)}`;
 }
@@ -162,6 +188,8 @@ export default function App() {
   const [state, setState] = useState<Persisted>({ checked: {}, choice: "" });
   const [theme, setTheme] = useState<Theme>("dark");
   const [tab, setTab] = useState<"dashboard" | "facilities" | "checklist" | "help">("dashboard");
+  const [obit, setObit] = useState<Obit>(EMPTY_OBIT);
+  const [obitCopied, setObitCopied] = useState(false);
 
   useEffect(() => {
     setState(loadState());
@@ -183,7 +211,7 @@ export default function App() {
 
   const stages = useMemo(() => {
     const branch = state.choice === "cremation" ? STAGE_2_CREMATION : state.choice === "burial" ? STAGE_2_BURIAL : null;
-    return [STAGE_0, STAGE_1, ...(branch ? [branch] : []), STAGE_3];
+    return [STAGE_0, STAGE_1, ...(branch ? [branch] : []), STAGE_3, STAGE_4];
   }, [state.choice]);
 
   const allSteps = useMemo(() => stages.flatMap((s) => s.steps), [stages]);
@@ -198,6 +226,63 @@ export default function App() {
     if (confirm("모든 체크 항목을 초기화할까요?")) setState({ checked: {}, choice: "" });
   };
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+  const updateObit = (key: keyof Obit, value: string) => setObit((o) => ({ ...o, [key]: value }));
+  const obitText = useMemo(() => buildObitText(obit), [obit]);
+  const copyObit = async () => {
+    try {
+      await navigator.clipboard.writeText(obitText);
+      setObitCopied(true);
+      setTimeout(() => setObitCopied(false), 1500);
+    } catch {
+      // clipboard unavailable; ignore
+    }
+  };
+
+  const renderStageSection = (stage: Stage) => (
+    <section
+      key={stage.id}
+      className="rounded-2xl overflow-hidden bg-surface border border-border/60"
+    >
+      <div className="px-4 py-2.5 flex items-center justify-between border-b border-border/60 bg-gradient-brand-soft">
+        <div className="text-sm font-bold">{stage.label}</div>
+        <div className="text-[11px] text-muted-foreground">{stage.timing}</div>
+      </div>
+      <ul>
+        {stage.steps.map((s, idx) => {
+          const isDone = !!state.checked[s.id];
+          return (
+            <li key={s.id} className={idx === 0 ? "" : "border-t border-border/60"}>
+              <button
+                onClick={() => toggle(s.id)}
+                className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-surface-elevated transition"
+              >
+                {isDone ? (
+                  <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0 text-brand-green" />
+                ) : (
+                  <Circle className="w-5 h-5 mt-0.5 shrink-0 text-muted-foreground" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div
+                    className={`text-[14px] leading-snug ${
+                      isDone ? "line-through text-muted-foreground" : "text-foreground"
+                    }`}
+                  >
+                    {s.label}
+                  </div>
+                  {s.hint && (
+                    <div className="text-[12px] mt-1 leading-relaxed text-muted-foreground">
+                      {s.hint}
+                    </div>
+                  )}
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 
   const TABS: { id: typeof tab; label: string; Icon: typeof LayoutDashboard }[] = [
     { id: "dashboard", label: "대시보드", Icon: LayoutDashboard },
@@ -288,7 +373,7 @@ export default function App() {
                 </button>
               )}
               <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                선택하면 2단계에 맞는 항목이 체크리스트에 자동으로 나타납니다.
+                선택하면 2단계에 맞는 항목이 체크리스트에 자동으로 나타납니다. 선택 전에도 '체크리스트' 탭에서 두 경로를 모두 미리 볼 수 있어요.
               </p>
             </section>
 
@@ -337,77 +422,34 @@ export default function App() {
               <div className="text-xs font-bold text-gradient-brand">{doneCount} / {total}</div>
             </section>
 
-            {stages.map((stage) => (
-              <section
-                key={stage.id}
-                className="rounded-2xl overflow-hidden bg-surface border border-border/60"
-              >
-                <div className="px-4 py-2.5 flex items-center justify-between border-b border-border/60 bg-gradient-brand-soft">
-                  <div className="text-sm font-bold">{stage.label}</div>
-                  <div className="text-[11px] text-muted-foreground">{stage.timing}</div>
-                </div>
-                <ul>
-                  {stage.steps.map((s, idx) => {
-                    const isDone = !!state.checked[s.id];
-                    return (
-                      <li key={s.id} className={idx === 0 ? "" : "border-t border-border/60"}>
-                        <button
-                          onClick={() => toggle(s.id)}
-                          className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-surface-elevated transition"
-                        >
-                          {isDone ? (
-                            <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0 text-brand-green" />
-                          ) : (
-                            <Circle className="w-5 h-5 mt-0.5 shrink-0 text-muted-foreground" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div
-                              className={`text-[14px] leading-snug ${
-                                isDone ? "line-through text-muted-foreground" : "text-foreground"
-                              }`}
-                            >
-                              {s.label}
-                            </div>
-                            {s.hint && (
-                              <div className="text-[12px] mt-1 leading-relaxed text-muted-foreground">
-                                {s.hint}
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
+            {stages.map((stage) => renderStageSection(stage))}
 
             {!state.choice && (
-              <section className="rounded-2xl bg-surface border border-dashed border-border/60 p-4">
-                <div className="text-sm font-bold">화장/매장을 선택하면 2단계가 열려요</div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setChoice("cremation")}
-                    className="rounded-xl px-3 py-2.5 text-sm font-semibold bg-gradient-brand text-white shadow-brand flex items-center justify-center gap-1.5"
-                  >
-                    <Flame className="w-4 h-4" /> 화장
-                  </button>
-                  <button
-                    onClick={() => setChoice("burial")}
-                    className="rounded-xl px-3 py-2.5 text-sm font-semibold bg-background border border-border/60 flex items-center justify-center gap-1.5"
-                  >
-                    <Trees className="w-4 h-4" /> 매장
-                  </button>
+              <section className="space-y-2">
+                <div className="rounded-2xl bg-surface border border-dashed border-border/60 p-4">
+                  <div className="text-sm font-bold">아직 선택 전이에요 — 두 경로를 미리 보고 체크할 수 있어요</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setChoice("cremation")}
+                      className="rounded-xl px-3 py-2.5 text-sm font-semibold bg-gradient-brand text-white shadow-brand flex items-center justify-center gap-1.5"
+                    >
+                      <Flame className="w-4 h-4" /> 화장으로 선택
+                    </button>
+                    <button
+                      onClick={() => setChoice("burial")}
+                      className="rounded-xl px-3 py-2.5 text-sm font-semibold bg-background border border-border/60 flex items-center justify-center gap-1.5"
+                    >
+                      <Trees className="w-4 h-4" /> 매장으로 선택
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                    아래 두 로드맵은 미리보기예요. 체크한 항목은 그대로 저장되고, 위에서 선택하면 해당 경로만 이어서 보여드려요.
+                  </p>
                 </div>
+                {renderStageSection(STAGE_2_CREMATION)}
+                {renderStageSection(STAGE_2_BURIAL)}
               </section>
             )}
-
-            <section className="rounded-2xl bg-surface border border-dashed border-border/60 p-4">
-              <div className="text-sm font-bold">4단계 · 장례 후 행정</div>
-              <div className="text-[12px] mt-1 text-muted-foreground">
-                사망신고 · 금융계좌 · 건강보험 · 상속 절차 — 곧 업데이트됩니다.
-              </div>
-            </section>
           </>
         )}
 
@@ -416,13 +458,13 @@ export default function App() {
             <section className="rounded-2xl bg-destructive/10 border border-destructive/30 p-3 flex items-start gap-2">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-destructive" />
               <div className="text-[12px] leading-relaxed text-foreground">
-                반드시 <b>전화로 가능 여부를 확인</b>한 후 방문하세요.
+                전화번호·주소는 AI가 조사한 정보로 <b>실제와 다를 수 있습니다.</b> 반드시 <b>전화로 가능 여부를 확인</b>하거나 지도에서 상호명을 다시 검색한 후 방문하세요.
               </div>
             </section>
 
             <section className="space-y-3">
               <h2 className="text-sm font-bold px-1 text-muted-foreground">
-                장례식장 · 우선순위 {FUNERAL_HOMES.length}곳
+                장례식장 · 아산 우선순위 (필요 시 천안까지 확장, {FUNERAL_HOMES.length}곳)
               </h2>
               {FUNERAL_HOMES.map((f) => (
                 <article
@@ -444,22 +486,30 @@ export default function App() {
                     <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {f.address}
                   </div>
 
-                  <div className="mt-3">
-                    <div className="text-[11px] text-muted-foreground">1일 빈소 평균</div>
-                    <div className="text-xl font-bold text-gradient-brand">
-                      {f.avgDailyCost.toLocaleString()}원
+                  {f.avgDailyCost != null && (
+                    <div className="mt-3">
+                      <div className="text-[11px] text-muted-foreground">1일 빈소 평균</div>
+                      <div className="text-xl font-bold text-gradient-brand">
+                        {f.avgDailyCost.toLocaleString()}원
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">{f.costRange}</div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{f.costRange}</div>
-                  </div>
+                  )}
 
                   <div className="text-[12px] mt-2 leading-relaxed text-muted-foreground">{f.note}</div>
 
-                  <a
-                    href={`tel:${f.phone}`}
-                    className="mt-3 flex items-center justify-center gap-2 w-full rounded-xl font-bold text-base py-3 bg-brand-blue text-white"
-                  >
-                    <Phone className="w-4 h-4" /> {f.phone}
-                  </a>
+                  {f.phone ? (
+                    <a
+                      href={`tel:${f.phone}`}
+                      className="mt-3 flex items-center justify-center gap-2 w-full rounded-xl font-bold text-base py-3 bg-brand-blue text-white"
+                    >
+                      <Phone className="w-4 h-4" /> {f.phone}
+                    </a>
+                  ) : (
+                    <div className="mt-3 rounded-xl text-center text-[12px] py-2.5 bg-surface-elevated text-muted-foreground">
+                      전화번호는 임종 시점에 검색하여 확인
+                    </div>
+                  )}
                   <a
                     href={mapUrl(f.address)}
                     target="_blank"
@@ -473,7 +523,7 @@ export default function App() {
                     <div className="mt-3 rounded-lg px-3 py-2 text-[12px] flex items-center gap-1 bg-surface-elevated text-muted-foreground">
                       <ChevronRight className="w-3.5 h-3.5" />
                       {f.rank}순위 안 되면 → {f.backup.rank}순위 {f.backup.name}
-                      <span className="ml-1 text-foreground">{f.backup.phone}</span>
+                      {f.backup.phone && <span className="ml-1 text-foreground">{f.backup.phone}</span>}
                     </div>
                   )}
                 </article>
@@ -574,10 +624,57 @@ export default function App() {
               </ul>
             </section>
 
+            <section className="rounded-2xl bg-surface border border-border/60 p-4">
+              <h2 className="text-sm font-bold mb-2 flex items-center gap-2 text-muted-foreground">
+                <FileText className="w-4 h-4" /> 부고 문자 만들기
+              </h2>
+              <div className="space-y-2">
+                <input
+                  value={obit.name}
+                  onChange={(e) => updateObit("name", e.target.value)}
+                  placeholder="고인 성명"
+                  className="w-full rounded-lg bg-background border border-border/60 px-3 py-2 text-sm"
+                />
+                <input
+                  value={obit.chief}
+                  onChange={(e) => updateObit("chief", e.target.value)}
+                  placeholder="상주 (예: 장남 ○○)"
+                  className="w-full rounded-lg bg-background border border-border/60 px-3 py-2 text-sm"
+                />
+                <input
+                  value={obit.place}
+                  onChange={(e) => updateObit("place", e.target.value)}
+                  placeholder="빈소 (예: 아산충무병원 국화원 2호실)"
+                  className="w-full rounded-lg bg-background border border-border/60 px-3 py-2 text-sm"
+                />
+                <input
+                  value={obit.dateTime}
+                  onChange={(e) => updateObit("dateTime", e.target.value)}
+                  placeholder="발인 일시 (예: 10월 15일(수) 오전 8시)"
+                  className="w-full rounded-lg bg-background border border-border/60 px-3 py-2 text-sm"
+                />
+                <input
+                  value={obit.contact}
+                  onChange={(e) => updateObit("contact", e.target.value)}
+                  placeholder="연락처"
+                  className="w-full rounded-lg bg-background border border-border/60 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="mt-3 rounded-lg bg-surface-elevated p-3 text-[13px] leading-relaxed whitespace-pre-wrap">
+                {obitText}
+              </div>
+              <button
+                onClick={copyObit}
+                className="mt-2 w-full rounded-xl py-2.5 text-sm font-semibold bg-gradient-brand text-white shadow-brand flex items-center justify-center gap-1.5"
+              >
+                <Copy className="w-4 h-4" /> {obitCopied ? "복사됨" : "문구 복사하기"}
+              </button>
+            </section>
+
             <section className="rounded-2xl bg-surface border border-border/60 p-4 text-[12px] leading-relaxed text-muted-foreground">
               <div className="font-bold mb-1 text-foreground">데이터 출처</div>
-              보건복지부 e하늘 장사정보시스템 공공데이터 / 한국장례문화진흥원 (2026년 6월 조사).
-              비용·연락처는 변경될 수 있으므로 임종 시점에 반드시 직접 확인이 필요합니다.
+              보건복지부 e하늘 장사정보시스템 공공데이터 / 한국장례문화진흥원 자료 기반, AI 조사 최종 점검 2026년 10월.
+              전화번호·주소는 AI가 웹 검색으로 수집한 정보로 실제와 다를 수 있고, 비용도 추정치입니다. 임종 시점에는 반드시 전화 또는 지도 검색으로 다시 확인하세요.
             </section>
           </>
         )}
