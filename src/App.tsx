@@ -18,6 +18,7 @@ import {
   Moon,
   FileText,
   Copy,
+  ArrowLeft,
 } from "lucide-react";
 
 // ---------- Data ----------
@@ -580,6 +581,13 @@ export default function App() {
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/70 border-b border-border/60">
         <div className="flex items-center justify-between px-5 h-14">
           <div className="flex items-center gap-2 min-w-0">
+            <a
+              href="https://echo-chamber-family.vercel.app"
+              aria-label="해와달 가족어플 홈으로"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-surface border border-border/50 text-muted-foreground shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </a>
             <span className="text-xl font-bold tracking-tight text-gradient-brand truncate">
               마지막 길
             </span>
